@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Embedding Explorer</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            font-weight: 300;
+        }
+        
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+        
+        .input-section {
+            padding: 30px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #e9ecef;
+        }
+        
+        .input-group {
+            display: flex;
+            gap: 15px;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        
+        .input-group input {
+            flex: 1;
+            padding: 15px;
+            border: 2px solid #e9ecef;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+        
+        .input-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .input-group button {
+            padding: 15px 30px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        
+        .input-group button:hover {
+            transform: translateY(-2px);
+        }
+        
+        .input-group button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .results-section {
+            padding: 30px;
+        }
+        
+        .tabs {
+            display: flex;
+            border-bottom: 2px solid #e9ecef;
+            margin-bottom: 30px;
+        }
+        
+        .tab {
+            padding: 15px 30px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            color: #6c757d;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s;
+        }
+        
+        .tab.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+        }
+        
+        .tab:hover {
+            color: #667eea;
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .chart-container {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #6c757d;
+        }
+        
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 20px 0;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .word-selector {
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        .word-selector select {
+            padding: 10px 15px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            font-size: 16px;
+            background: white;
+        }
+        
+        .word-selector select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .placeholder {
+            text-align: center;
+            padding: 60px 20px;
+            color: #6c757d;
+        }
+        
+        .placeholder h3 {
+            margin-bottom: 15px;
+            color: #495057;
+        }
+        
+        .example-words {
+            background: #e9ecef;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+            font-family: monospace;
+            color: #495057;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔍 Embedding Explorer</h1>
+            <p>Explore semantic relationships between words using AI embeddings</p>
+        </div>
+        
+        <div class="input-section">
+            <div class="input-group">
+                <input 
+                    type="text" 
+                    id="wordInput" 
+                    placeholder="Enter words separated by commas (e.g., cat, dog, bird, fish)"
+                    value="cat, dog, bird, fish, computer, technology, love, happiness, sadness, anger"
+                >
+                <button id="analyzeBtn" onclick="analyzeWords()">Analyze</button>
+            </div>
+        </div>
+        
+        <div class="results-section" id="resultsSection" style="display: none;">
+            <div class="tabs">
+                <button class="tab active" onclick="showTab('heatmap', event)">Similarity Heatmap</button>
+                <button class="tab" onclick="showTab('barChart', event)">Word Similarities</button>
+                <button class="tab" onclick="showTab('scatter', event)">2D Embeddings</button>
+            </div>
+            
+            <div id="heatmap" class="tab-content active">
+                <div class="chart-container">
+                    <div id="heatmapChart"></div>
+                </div>
+            </div>
+            
+            <div id="barChart" class="tab-content">
+                <div class="word-selector">
+                    <label for="wordSelect">Select word to compare:</label>
+                    <select id="wordSelect" onchange="updateBarChart()">
+                        <option value="">Choose a word...</option>
+                    </select>
+                </div>
+                <div class="chart-container">
+                    <div id="barChartDiv"></div>
+                </div>
+            </div>
+            
+            <div id="scatter" class="tab-content">
+                <div class="chart-container">
+                    <div id="scatterChart"></div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="placeholder" id="placeholder">
+            <h3>Ready to explore embeddings?</h3>
+            <p>Enter a list of words separated by commas and click "Analyze" to see their semantic relationships.</p>
+            <div class="example-words">
+                Example: cat, dog, bird, fish, computer, technology, love, happiness, sadness, anger
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentData = null;
+        
+        async function analyzeWords() {
+            const input = document.getElementById('wordInput').value.trim();
+            if (!input) {
+                alert('Please enter some words');
+                return;
+            }
+            
+            const words = input.split(',').map(w => w.trim()).filter(w => w);
+            if (words.length < 2) {
+                alert('Please enter at least 2 words');
+                return;
+            }
+            
+            const button = document.getElementById('analyzeBtn');
+            const originalText = button.textContent;
+            button.textContent = 'Analyzing...';
+            button.disabled = true;
+            
+            try {
+                const response = await fetch('/embeddings', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ words: words })
+                });
+                
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.detail || 'Failed to analyze words');
+                }
+                
+                currentData = await response.json();
+                displayResults();
+                
+            } catch (error) {
+                showError(error.message);
+            } finally {
+                button.textContent = originalText;
+                button.disabled = false;
+            }
+        }
+        
+        function displayResults() {
+            document.getElementById('placeholder').style.display = 'none';
+            document.getElementById('resultsSection').style.display = 'block';
+            
+            // Populate word selector
+            const wordSelect = document.getElementById('wordSelect');
+            wordSelect.innerHTML = '<option value="">Choose a word...</option>';
+            currentData.words.forEach((word, index) => {
+                const option = document.createElement('option');
+                option.value = index;
+                option.textContent = word;
+                wordSelect.appendChild(option);
+            });
+            
+            // Show first tab
+            showTab('heatmap');
+        }
+        
+        function showTab(tabName, event) {
+            // Hide all tab contents
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            
+            // Remove active class from all tabs
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Show selected tab content
+            document.getElementById(tabName).classList.add('active');
+            
+            // Add active class to clicked tab
+            if (event && event.target) { event.target.classList.add('active'); }
+            
+            // Render appropriate chart
+            switch(tabName) {
+                case 'heatmap':
+                    renderHeatmap();
+                    break;
+                case 'barChart':
+                    renderBarChart();
+                    break;
+                case 'scatter':
+                    renderScatterPlot();
+                    break;
+            }
+        }
+        
+        function renderHeatmap() {
+            if (!currentData) return;
+            
+            const data = [{
+                z: currentData.similarity_matrix,
+                x: currentData.words,
+                y: currentData.words,
+                type: 'heatmap',
+                colorscale: 'Viridis',
+                hoverongaps: false
+            }];
+            
+            const layout = {
+                title: 'Cosine Similarity Matrix',
+                xaxis: { title: 'Words' },
+                yaxis: { title: 'Words' },
+                width: 800,
+                height: 600
+            };
+            
+            Plotly.newPlot('heatmapChart', data, layout);
+        }
+        
+        function renderBarChart() {
+            if (!currentData) return;
+            
+            const wordIndex = document.getElementById('wordSelect').value;
+            if (wordIndex === '') return;
+            
+            const selectedWord = currentData.words[wordIndex];
+            const similarities = currentData.similarity_matrix[wordIndex];
+            
+            // Remove self-similarity (which is always 1.0)
+            const otherWords = currentData.words.filter((_, i) => i != wordIndex);
+            const otherSimilarities = similarities.filter((_, i) => i != wordIndex);
+            
+            const data = [{
+                x: otherWords,
+                y: otherSimilarities,
+                type: 'bar',
+                marker: {
+                    color: otherSimilarities.map(s => `rgba(102, 126, 234, ${0.3 + s * 0.7})`)
+                }
+            }];
+            
+            const layout = {
+                title: `Similarity of "${selectedWord}" to other words`,
+                xaxis: { title: 'Words' },
+                yaxis: { title: 'Cosine Similarity', range: [0, 1] },
+                width: 800,
+                height: 500
+            };
+            
+            Plotly.newPlot('barChartDiv', data, layout);
+        }
+        
+        function updateBarChart() {
+            renderBarChart();
+        }
+        
+        function renderScatterPlot() {
+            if (!currentData) return;
+            
+            const data = [{
+                x: currentData.embeddings_2d.map(e => e[0]),
+                y: currentData.embeddings_2d.map(e => e[1]),
+                mode: 'markers+text',
+                type: 'scatter',
+                text: currentData.words,
+                textposition: 'top center',
+                marker: {
+                    size: 12,
+                    color: 'rgba(102, 126, 234, 0.8)',
+                    line: {
+                        color: 'rgba(102, 126, 234, 1)',
+                        width: 2
+                    }
+                }
+            }];
+            
+            const layout = {
+                title: '2D Embeddings (PCA Reduction)',
+                xaxis: { title: 'Principal Component 1' },
+                yaxis: { title: 'Principal Component 2' },
+                width: 800,
+                height: 600,
+                showlegend: false
+            };
+            
+            Plotly.newPlot('scatterChart', data, layout);
+        }
+        
+        function showError(message) {
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'error';
+            errorDiv.textContent = message;
+            
+            const container = document.querySelector('.container');
+            container.appendChild(errorDiv);
+            
+            setTimeout(() => {
+                errorDiv.remove();
+            }, 5000);
+        }
+        
+        // Handle Enter key in input
+        document.getElementById('wordInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                analyzeWords();
+            }
+        });
+    </script>
+</body>
+</html>
